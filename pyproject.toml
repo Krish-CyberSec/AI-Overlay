@@ -1,0 +1,13 @@
+[project]
+name = "ai-overlay"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "google-genai>=2.24.0",
+    "openai>=3.14.1",
+    "pyautogui>=0.9.54",
+    "pynput>=1.8.2",
+    "pyperclip>=1.11.0",
+    "pyside6>=6.11.2",
+    "python-dotenv>=1.2.3",
+]
