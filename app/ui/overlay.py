@@ -6,10 +6,10 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTextEdit,
 )
-from PySide6.QtCore import Qt
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal, QPoint
 from app.ai.client import ask_ai
 import pyautogui
+import pyperclip
 class AIWorker(QThread):
     finished = Signal(str)
     error = Signal(str)
@@ -37,7 +37,62 @@ class OverlayWindow(QWidget):
             True,
         )
 
+        self.setStyleSheet("""
+    QWidget {
+        background-color: #0B1120;
+        color: #E5E7EB;
+        font-family: "Segoe UI";
+    }
+
+    QLineEdit {
+        background-color: #111827;
+        color: #F9FAFB;
+        border: 1px solid #374151;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    QPushButton {
+        background-color: #2563EB;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 14px;
+        font-size: 14px;
+    }
+
+    QPushButton:hover {
+        background-color: #1D4ED8;
+    }
+
+    QPushButton:disabled {
+        background-color: #374151;
+        color: #9CA3AF;
+    }
+""")
+
         self.setup_ui()
+        self.drag_position = QPoint()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_position = (
+                event.globalPosition().toPoint()
+                - self.frameGeometry().topLeft()
+            )
+
+        super().mousePressEvent(event)
+
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            self.move(
+                event.globalPosition().toPoint()
+                - self.drag_position
+            )
+
+        super().mouseMoveEvent(event)
 
     def setup_ui(self):
         layout = QVBoxLayout()
@@ -61,17 +116,53 @@ class OverlayWindow(QWidget):
         self.insert_button.clicked.connect(self.insert_answer)
         self.insert_button.setEnabled(False)
 
+        self.copy_button = QPushButton("Copy Answer")
+        self.copy_button.clicked.connect(self.copy_answer)
+        self.copy_button.setEnabled(False)
+
+
+
         self.answer_box = QTextEdit()
         self.answer_box.setReadOnly(True)
         self.answer_box.setPlaceholderText(
-            "Response will appear here..."
+            "Your answer will appear here..."
         )
+
+        self.answer_box.setStyleSheet("""
+            QTextEdit {
+                background-color: #111827;
+                color: #E5E7EB;
+                border: 1px solid #374151;
+                border-radius: 10px;
+                padding: 12px;
+                font-size: 14px;
+                selection-background-color: #374151;
+            }
+            
+            QScrollBar:vertical {
+                background: #111827;
+                width: 10px;
+                margin: 0px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: #374151;
+                border-radius: 5px;
+                min-height: 30px;
+            }
+
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
 
         layout.addWidget(title)
         layout.addWidget(subtitle)
         layout.addWidget(self.question_input)
         layout.addWidget(self.ask_button)
         layout.addWidget(self.insert_button)
+        layout.addWidget(self.copy_button)
         layout.addWidget(self.answer_box)
         self.setLayout(layout)
 
@@ -97,7 +188,7 @@ class OverlayWindow(QWidget):
         self.answer_box.setPlainText(answer)
         self.ask_button.setEnabled(True)
         self.insert_button.setEnabled(True)
-
+        self.copy_button.setEnabled(True)
 
     def handle_ai_error(self, error):
         self.answer_box.setPlainText(
@@ -105,6 +196,7 @@ class OverlayWindow(QWidget):
         )
         self.ask_button.setEnabled(True)
         self.insert_button.setEnabled(False)
+        self.copy_button.setEnabled(False)
 
     def insert_answer(self):
         answer = self.answer_box.toPlainText().strip()
@@ -112,12 +204,12 @@ class OverlayWindow(QWidget):
         if not answer or answer == "Thinking...":
             return
 
+        pyperclip.copy(answer)
+
         self.hide()
 
-        pyautogui.write(
-            answer,
-            interval=0.01,
-        )
+        pyautogui.hotkey("ctrl", "v")
+
     def toggle_visibility(self):
         if self.isVisible():
             self.hide()
@@ -125,4 +217,12 @@ class OverlayWindow(QWidget):
             self.show()
             self.activateWindow()
             self.question_input.setFocus()
+
+    def copy_answer(self):
+        answer = self.answer_box.toPlainText().strip()
+
+        if not answer or answer == "Thinking...":
+            return
+
+        pyperclip.copy(answer)
     
